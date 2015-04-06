@@ -1,5 +1,7 @@
 package com.kasperhdl.planetjacker.entities;
 
+import com.kasperhdl.planetjacker.utils.CollisionUtil;
+import org.newdawn.slick.geom.Polygon;
 import org.newdawn.slick.geom.Vector2f;
 
 /**
@@ -15,11 +17,28 @@ import org.newdawn.slick.geom.Vector2f;
 public class Body extends Entity{
 
     protected float mass;
+    public float rotation;
 
-    protected Vector2f acceleration;
-    protected Vector2f velocity;
+    public Vector2f[] points;
+    public Vector2f[] middlePoints;
+    public Polygon shape;
 
-    public Body(){
+    public Vector2f acceleration;
+    public Vector2f velocity;
+
+    protected void initShape(){
+
+        points = CollisionUtil.floatsToVector2(shape.getPoints());
+        middlePoints = new Vector2f[points.length];
+
+        //take points and find middle of line
+        double lastT = 0;
+        for (int i = 0; i < middlePoints.length; i++) {
+            double t = points[i].getTheta() - lastT;
+            Vector2f vector = new Vector2f(10,0);
+            vector.setTheta(t/2);
+            middlePoints[i] = vector;
+        }
 
     }
 }

@@ -15,7 +15,7 @@ import org.newdawn.slick.geom.Vector2f;
 
 public class Entity {
 
-    protected Vector2f position;
+    public Vector2f position;
 
     protected Vector2f size;
 

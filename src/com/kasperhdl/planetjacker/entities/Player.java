@@ -1,10 +1,13 @@
 package com.kasperhdl.planetjacker.entities;
 
+import com.kasperhdl.planetjacker.utils.VectorUtil;
 import org.newdawn.slick.Color;
 import org.newdawn.slick.Graphics;
 import org.newdawn.slick.Input;
 import org.newdawn.slick.geom.Polygon;
 import org.newdawn.slick.geom.Vector2f;
+
+import java.util.Random;
 
 /**
  * Created by @Kasper on 30/03/2015
@@ -20,7 +23,6 @@ public class Player extends Body {
 
     public Vector2f[] debugVectors;
 
-    public Polygon shape;
     public Vector2f center;
 
     //physical props
@@ -35,7 +37,6 @@ public class Player extends Body {
     private float maxAngularVelocity;
     private float maxVelocity;
 
-    public float rotation;
     public float rotationAcceleration;
     public float rotationVelocity;
 
@@ -44,24 +45,34 @@ public class Player extends Body {
     private int upKey,downKey,leftKey,rightKey;
     private boolean upKeyDown,downKeyDown,leftKeyDown,rightKeyDown;
 
+
+    Color[] colors;
+    Random rnd;
+
     public Player(){
+        rnd = new Random();
+        colors = new Color[10];
+        for (int i = 0;i<colors.length;i++)
+            colors[i] = new Color(rnd.nextInt(255),rnd.nextInt(255),rnd.nextInt(255));
+
+
         size = new Vector2f(20f,20f);
 
-        force = .2f;
-        rotationForce = 0.05f;
-        mass = 100f;
+        force = .02f;
+        rotationForce = 500f;
+        mass = 1f;
 
         rotationAcceleration = 0;
         rotationVelocity = 0;
 
-        inertia = .60f;
+        inertia = .95f;
         friction = .99f;
 
-        angularInertia = 0.7f;
-        angularFriction = 0.7f;
+        angularInertia = .9f;
+        angularFriction = .9f;
 
         maxAngularVelocity = 1.2f;
-        maxVelocity = 2f;
+        maxVelocity = 1f;
 
 
         rotation = 0;
@@ -88,7 +99,9 @@ public class Player extends Body {
         shape.addPoint(-size.x/2, size.y/2);
 
         center = new Vector2f(shape.getCenterX(),shape.getCenterY());
-        System.out.println(center);
+
+        System.out.println("done making a player");
+        initShape();
     }
 
     @Override
@@ -104,57 +117,6 @@ public class Player extends Body {
         g.translate(position.x, position.y);
         g.rotate(0, 0, rotation);
 
-        for(int i = 0;i<debugVectors.length;i++){
-            Vector2f point = new Vector2f(shape.getPoint(i)[0],shape.getPoint(i)[1]);
-            Vector2f perp = debugVectors[i].getPerpendicular();
-            g.setColor(Color.red);
-            g.drawLine(point.x, point.y, point.x + perp.x, point.y + perp.y);
-            g.setColor(Color.green);
-
-            Vector2f[] projPoints = new Vector2f[debugVectors.length-1];
-
-            int c = 0;
-
-            for(int j = 0;j<debugVectors.length;j++) {
-                if (i == j) continue;
-                Vector2f proj = new Vector2f(0,0);
-                debugVectors[j].projectOntoUnit(perp.getNormal(), proj);
-
-                projPoints[c] = proj;
-
-                c++;
-            }
-
-            float extDist = 0;
-            int maxInd = 0;
-
-            for(int p = 1;p<projPoints.length;p++){
-                float dist = projPoints[p].distance(projPoints[0]);
-                if(dist > extDist){
-                    extDist = dist;
-                    maxInd = p;
-                }
-            }
-
-            int minInd = 0;
-            if(maxInd == minInd)minInd = 1;
-
-            for(int p = 0;p<projPoints.length;p++){
-                if(p == maxInd)continue;
-
-                float dist = projPoints[p].distance(projPoints[maxInd]);
-                if(dist > extDist){
-                    extDist = dist;
-                    minInd = p;
-                }
-            }
-            g.setColor(Color.green);
-            g.drawLine(projPoints[maxInd].x,projPoints[maxInd].y,projPoints[minInd].x,projPoints[minInd].y);
-        }
-
-
-
-
         g.setColor(Color.white);
 
         g.draw(shape);
@@ -163,13 +125,16 @@ public class Player extends Body {
 
 
     private void move(float delta){
-        float inputX = 0;
-        float inputY = 0;
+        float inputX;
+        float inputY;
 
         //rotation
+        rotation += rotationVelocity * delta;
 
-        rotationAcceleration *= angularInertia;
-        rotationVelocity *= angularFriction;
+        if(Math.abs(rotationVelocity) > maxAngularVelocity)
+            rotationVelocity = Math.signum(rotationVelocity) * maxAngularVelocity * delta;
+        else
+            rotationVelocity += rotationAcceleration * delta;
 
         if(leftKeyDown)
             inputX = -1;
@@ -180,18 +145,24 @@ public class Player extends Body {
 
         rotationAcceleration += inputX * rotationForce;
 
-        if(Math.abs(rotationVelocity) > maxAngularVelocity)
-            rotationVelocity = Math.signum(rotationVelocity) * maxAngularVelocity;
-        else
-            rotationVelocity += rotationAcceleration;
-
-        rotation += rotationVelocity;
+        rotationAcceleration *= angularInertia;
+        rotationVelocity *= angularFriction;
 
         //position
 
+        Vector2f tmpVel = new Vector2f(velocity);
+        tmpVel.scale(delta);
 
-        acceleration.scale(inertia);
-        velocity.scale(friction);
+        position.add(velocity);
+
+        Vector2f tmpAcc = new Vector2f(acceleration);
+        tmpAcc.scale(delta);
+
+        if(velocity.length() > maxVelocity)
+            velocity = velocity.getNormal().scale(maxVelocity);
+        else
+            velocity.add(tmpAcc);
+
 
         if(upKeyDown)
             inputY = 1;
@@ -201,27 +172,15 @@ public class Player extends Body {
             inputY = 0;
 
         Vector2f input = new Vector2f(inputY,0);
-
-        double cos = Math.cos(rotation/180*Math.PI);
-        double sin = Math.sin(rotation/180*Math.PI);
-
-        double nx = input.x * cos - input.y * sin;
-        double ny = input.x * sin + input.y * cos;
-
-        input.x = (float) nx;
-        input.y = (float) ny;
+        VectorUtil.rotateVector(input, rotation);
 
         input.scale(force / mass);
 
         acceleration.add(input);
 
+        acceleration.scale(inertia);
+        velocity.scale(friction);
 
-        if(velocity.length() > maxVelocity)
-            velocity = velocity.getNormal().scale(maxVelocity);
-        else
-            velocity.add(acceleration);
-
-        position.add(velocity);
 
     }
 
